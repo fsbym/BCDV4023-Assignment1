@@ -3,10 +3,14 @@
 pragma solidity 0.8.4;
  
 contract TaskContract {
+
+    enum Importance {LOW, MEDIUM, HIGH}
+
     struct Task {
         uint256 id;
         address username;
         string taskText;
+        Importance imp;
         bool isDeleted;
     }
  
@@ -18,9 +22,9 @@ contract TaskContract {
     event AddTask(address recipient, uint256 taskId);
     event DeleteTask(uint256 taskId, bool isDeleted);
  
-    function addTask(string memory taskText, bool isDeleted) external {
+    function addTask(string memory taskText, Importance imp, bool isDeleted) external {
         uint256 taskId = tasks.length;
-        tasks.push(Task(taskId, msg.sender, taskText, isDeleted));
+        tasks.push(Task(taskId, msg.sender, taskText, imp, isDeleted));
         taskToOwner[taskId] = msg.sender;
         emit AddTask(msg.sender, taskId);
     }
