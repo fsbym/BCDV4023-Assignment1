@@ -6,7 +6,7 @@ import {
   Select,
   FormControl,
 } from "@mui/material";
-import Task from "./Task.js";
+import Task from "./Task.jsx";
 import "./App.css";
 import { TaskContractAddress } from "./config.js";
 import TaskAbi from "./TaskContract.json";
