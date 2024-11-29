@@ -5,7 +5,16 @@ require("dotenv").config();
 
 module.exports = {
   defaultNetwork: "sepolia",
-  solidity: "0.8.4",
+  solidity: {
+    compilers: [
+      {
+        version: "0.8.20",
+      },
+      {
+        version: "0.8.4",
+      },
+    ],
+  },
   networks: {
     sepolia: {
       url: process.env.ALCHEMY_SEPOLIA_URL,

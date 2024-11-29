@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { TextField, Button } from "@mui/material";
-import Task from "./Task";
+import {
+  TextField,
+  Button,
+  MenuItem,
+  Select,
+  FormControl,
+} from "@mui/material";
+import Task from "./Task.js";
 import "./App.css";
 import { TaskContractAddress } from "./config.js";
 import TaskAbi from "./TaskContract.json";
@@ -10,8 +16,15 @@ const { ethers } = require("ethers");
 function App() {
   const [tasks, setTasks] = useState([]);
   const [input, setInput] = useState("");
+  const [importance, setImportance] = useState("LOW");
   const [currentAccount, setCurrentAccount] = useState("");
   const [correctNetwork, setCorrectNetwork] = useState(false);
+
+  const importanceMapping = {
+    LOW: 0,
+    MEDIUM: 1,
+    HIGH: 2,
+  };
 
   const getAllTasks = async () => {
     try {
@@ -25,6 +38,14 @@ function App() {
           signer
         );
         let allTasks = await TaskContract.getMyTasks();
+        // Process tasks to ensure they are in the correct format
+        allTasks = allTasks.map((task) => ({
+          id: task.id.toNumber(),
+          username: task.username,
+          taskText: task.taskText,
+          importance: task.importance,
+          isDeleted: task.isDeleted,
+        }));
         setTasks(allTasks);
       } else {
         console.log("Ethereum object does not exist.");
@@ -80,20 +101,26 @@ function App() {
           TaskAbi.abi,
           signer
         );
-        TaskContract.addTask(task.taskText, task.isDeleted)
-          .then((response) => {
-            // spread operator -- copy the elements of 'tasks' array into a new array with new task appended
-            setTasks([...tasks, task]);
-            console.log("Task added.");
-          })
-          .catch((err) => {
-            console.log("Error when adding new task.");
-          });
+        console.log(
+          "Adding task with parameters:",
+          task.taskText,
+          importanceMapping[importance],
+          task.isDeleted
+        );
+        const response = await TaskContract.addTask(
+          task.taskText,
+          importanceMapping[importance],
+          task.isDeleted
+        ); // Map importance to numeric value
+        console.log("Transaction response:", response);
+        const receipt = await response.wait();
+        console.log("Transaction receipt:", receipt);
+        getAllTasks(); // Refresh the task list
       } else {
         console.log("Ethereum object does not exist.");
       }
     } catch (error) {
-      console.log("Error submitting new task. ", error);
+      console.log("Error adding task:", error);
     }
     setInput("");
   };
@@ -149,7 +176,7 @@ function App() {
         <div className="App">
           <img
             src={require("./todo.jpg")}
-            style={{ width: "40%", height: "30%" }}
+            style={{ width: "10%", height: "10%" }}
           />
           <form style={{ margin: "20px 30px 20px" }}>
             <TextField
@@ -161,6 +188,18 @@ function App() {
               value={input}
               onChange={(event) => setInput(event.target.value)}
             />
+            <FormControl style={{ margin: "0px 10px 30px" }}>
+              <Select
+                labelId="importance-label"
+                id="importance"
+                value={importance}
+                onChange={(event) => setImportance(event.target.value)}
+              >
+                <MenuItem value="LOW">Low</MenuItem>
+                <MenuItem value="MEDIUM">Medium</MenuItem>
+                <MenuItem value="HIGH">High</MenuItem>
+              </Select>
+            </FormControl>
             <Button
               variant="text"
               color="info"
