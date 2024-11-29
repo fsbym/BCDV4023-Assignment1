@@ -30,34 +30,37 @@ function App() {
     try {
       const { ethereum } = window;
       if (ethereum) {
-        const provider = new ethers.BrowserProvider(window.ethereum);
+        const provider = new ethers.BrowserProvider(ethereum);
         const signer = await provider.getSigner();
         const TaskContract = new ethers.Contract(
           TaskContractAddress,
           TaskAbi.abi,
           signer
         );
-        let allTasks = await TaskContract.getMyTasks();
-        // Process tasks to ensure they are in the correct format
-        allTasks = allTasks.map((task) => ({
-          id: task.id.toNumber(),
-          username: task.username,
+
+        const tasks = await TaskContract.getMyTasks();
+        console.log("Tasks retrieved from contract:", tasks);
+
+        // Format tasks
+        const items = tasks.map((task) => ({
+          id: Number(task.id), // Convert BigInt to Number
           taskText: task.taskText,
-          importance: task.importance,
+          importance: Number(task.importance), // Convert BigInt to Number
           isDeleted: task.isDeleted,
         }));
-        setTasks(allTasks);
+        console.log("Formatted tasks:", items);
+        setTasks(items);
       } else {
-        console.log("Ethereum object does not exist.");
+        console.log("Ethereum object doesn't exist");
       }
     } catch (error) {
-      console.log(error);
+      console.log("Error fetching tasks:", error);
     }
   };
 
   useEffect(() => {
     getAllTasks();
-  }, [tasks]);
+  }, []);
 
   const connectWallet = async () => {
     try {
@@ -68,7 +71,7 @@ function App() {
       }
       let chainId = await ethereum.request({ method: "eth_chainId" });
       console.log("Connected to chain: " + chainId);
-      const sepoliaChainId = "0xaa36a7"; // 11155111
+      const sepoliaChainId = "0xaa36a7"; // Sepolia chain ID in hex
       if (chainId !== sepoliaChainId) {
         alert("You are not connected to the Sepolia Testnet.");
         return;
@@ -87,64 +90,68 @@ function App() {
 
   const addTask = async (event) => {
     event.preventDefault();
-    let task = {
-      taskText: input,
-      isDeleted: false,
-    };
+    if (!input) return;
+
     try {
       const { ethereum } = window;
       if (ethereum) {
-        const provider = new ethers.BrowserProvider(window.ethereum);
+        const provider = new ethers.BrowserProvider(ethereum);
         const signer = await provider.getSigner();
         const TaskContract = new ethers.Contract(
           TaskContractAddress,
           TaskAbi.abi,
           signer
         );
+
+        const importanceLevel = importanceMapping[importance];
+
         console.log(
           "Adding task with parameters:",
-          task.taskText,
-          importanceMapping[importance],
-          task.isDeleted
+          input,
+          importanceLevel,
+          false
         );
-        const response = await TaskContract.addTask(
-          task.taskText,
-          importanceMapping[importance],
-          task.isDeleted
-        ); // Map importance to numeric value
-        console.log("Transaction response:", response);
-        const receipt = await response.wait();
-        console.log("Transaction receipt:", receipt);
-        getAllTasks(); // Refresh the task list
-      } else {
-        console.log("Ethereum object does not exist.");
+
+        const tx = await TaskContract.addTask(input, importanceLevel, false);
+        console.log("Transaction response:", tx);
+        await tx.wait();
+        console.log("Transaction mined");
+
+        // Clear the input fields
+        setInput("");
+        setImportance("LOW");
+
+        // Refresh tasks
+        getAllTasks();
       }
     } catch (error) {
-      console.log("Error adding task:", error);
+      console.error("Error adding task:", error);
     }
-    setInput("");
   };
 
-  const deleteTask = (key) => async () => {
+  const deleteTask = async (key) => {
     console.log("Task ID to delete: " + key);
     try {
       const { ethereum } = window;
       if (ethereum) {
-        const provider = new ethers.BrowserProvider(window.ethereum);
+        const provider = new ethers.BrowserProvider(ethereum);
         const signer = await provider.getSigner();
         const TaskContract = new ethers.Contract(
           TaskContractAddress,
           TaskAbi.abi,
           signer
         );
-        let deleteTx = await TaskContract.deleteTask(key, true);
-        let allTasks = await TaskContract.getMyTasks();
-        setTasks(allTasks);
+        let deleteTx = await TaskContract.deleteTask(key);
+        await deleteTx.wait();
+        console.log("Task deleted.");
+
+        // Refresh tasks
+        getAllTasks();
       } else {
         console.log("Ethereum object does not exist.");
       }
     } catch (error) {
-      console.log(error);
+      console.log("Error deleting task:", error);
     }
   };
 
@@ -177,6 +184,7 @@ function App() {
           <img
             src={require("./todo.jpg")}
             style={{ width: "10%", height: "10%" }}
+            alt="To-Do List"
           />
           <form style={{ margin: "20px 30px 20px" }}>
             <TextField
@@ -210,11 +218,12 @@ function App() {
             </Button>
           </form>
           <ul>
-            {tasks.map((item) => (
+            {tasks.map((task) => (
               <Task
-                key={item.id}
-                taskText={item.taskText}
-                onClick={deleteTask(item.id)}
+                key={task.id}
+                taskText={task.taskText}
+                importance={task.importance}
+                onClick={() => deleteTask(task.id)}
               />
             ))}
           </ul>
